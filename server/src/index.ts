@@ -4,23 +4,20 @@ import 'dotenv/config';
 import cors from 'cors';
 import superjson from 'superjson';
 
-// Import schemas
+// Import schema types
 import { 
-  getDepartmentsInputSchema,
-  getCommunesInputSchema,
-  getPluZonesInputSchema
+  createGeographicFeatureInputSchema,
+  searchGeographicFeaturesInputSchema,
+  getFeaturesInBoundsInputSchema
 } from './schema';
-import { z } from 'zod';
 
 // Import handlers
-import { getDepartments } from './handlers/get_departments';
-import { getCommunes } from './handlers/get_communes';
-import { getPluZones } from './handlers/get_plu_zones';
-import { 
-  syncDepartmentsFromGeoPortail,
-  syncCommunesFromGeoPortail,
-  syncPluZonesFromGeoPortail
-} from './handlers/sync_geoportail_data';
+import { createGeographicFeature } from './handlers/create_geographic_feature';
+import { getGeographicFeatures } from './handlers/get_geographic_features';
+import { searchGeographicFeatures } from './handlers/search_geographic_features';
+import { getFeaturesInBounds } from './handlers/get_features_in_bounds';
+import { getFranceBounds } from './handlers/get_france_bounds';
+import { getInitialMapView } from './handlers/get_initial_map_view';
 
 const t = initTRPC.create({
   transformer: superjson,
@@ -35,34 +32,28 @@ const appRouter = router({
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),
 
-  // Map data endpoints
-  getDepartments: publicProcedure
-    .input(getDepartmentsInputSchema.optional())
-    .query(({ input }) => getDepartments(input)),
+  // Geographic feature management
+  createGeographicFeature: publicProcedure
+    .input(createGeographicFeatureInputSchema)
+    .mutation(({ input }) => createGeographicFeature(input)),
 
-  getCommunes: publicProcedure
-    .input(getCommunesInputSchema)
-    .query(({ input }) => getCommunes(input)),
+  getGeographicFeatures: publicProcedure
+    .query(() => getGeographicFeatures()),
 
-  getPluZones: publicProcedure
-    .input(getPluZonesInputSchema)
-    .query(({ input }) => getPluZones(input)),
+  searchGeographicFeatures: publicProcedure
+    .input(searchGeographicFeaturesInputSchema)
+    .query(({ input }) => searchGeographicFeatures(input)),
 
-  // Data synchronization endpoints
-  syncDepartments: publicProcedure
-    .mutation(() => syncDepartmentsFromGeoPortail()),
+  getFeaturesInBounds: publicProcedure
+    .input(getFeaturesInBoundsInputSchema)
+    .query(({ input }) => getFeaturesInBounds(input)),
 
-  syncCommunes: publicProcedure
-    .input(z.object({
-      department_code: z.string().optional()
-    }).optional())
-    .mutation(({ input }) => syncCommunesFromGeoPortail(input?.department_code)),
+  // Map configuration endpoints
+  getFranceBounds: publicProcedure
+    .query(() => getFranceBounds()),
 
-  syncPluZones: publicProcedure
-    .input(z.object({
-      commune_code: z.string().optional()
-    }).optional())
-    .mutation(({ input }) => syncPluZonesFromGeoPortail(input?.commune_code)),
+  getInitialMapView: publicProcedure
+    .query(() => getInitialMapView()),
 });
 
 export type AppRouter = typeof appRouter;
@@ -79,15 +70,7 @@ async function start() {
     },
   });
   server.listen(port);
-  console.log(`TRPC server listening at port: ${port}`);
-  console.log('Available endpoints:');
-  console.log('- healthcheck: GET /healthcheck');
-  console.log('- getDepartments: POST /getDepartments');
-  console.log('- getCommunes: POST /getCommunes');
-  console.log('- getPluZones: POST /getPluZones');
-  console.log('- syncDepartments: POST /syncDepartments');
-  console.log('- syncCommunes: POST /syncCommunes');
-  console.log('- syncPluZones: POST /syncPluZones');
+  console.log(`Geoportail TRPC server listening at port: ${port}`);
 }
 
 start();

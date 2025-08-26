@@ -1,110 +1,73 @@
 import { z } from 'zod';
 
-// GeoJSON geometry types
-export const coordinatesSchema = z.array(z.number()).min(2);
-export const pointGeometrySchema = z.object({
-  type: z.literal('Point'),
-  coordinates: coordinatesSchema
-});
-export const multiPointGeometrySchema = z.object({
-  type: z.literal('MultiPoint'),
-  coordinates: z.array(coordinatesSchema)
-});
-export const lineStringGeometrySchema = z.object({
-  type: z.literal('LineString'),
-  coordinates: z.array(coordinatesSchema)
-});
-export const multiLineStringGeometrySchema = z.object({
-  type: z.literal('MultiLineString'),
-  coordinates: z.array(z.array(coordinatesSchema))
-});
-export const polygonGeometrySchema = z.object({
-  type: z.literal('Polygon'),
-  coordinates: z.array(z.array(coordinatesSchema))
-});
-export const multiPolygonGeometrySchema = z.object({
-  type: z.literal('MultiPolygon'),
-  coordinates: z.array(z.array(z.array(coordinatesSchema)))
+// Geographic coordinate schema for latitude and longitude
+export const coordinateSchema = z.object({
+  latitude: z.number().min(-90).max(90), // Valid latitude range
+  longitude: z.number().min(-180).max(180) // Valid longitude range
 });
 
-export const geometrySchema = z.union([
-  pointGeometrySchema,
-  multiPointGeometrySchema,
-  lineStringGeometrySchema,
-  multiLineStringGeometrySchema,
-  polygonGeometrySchema,
-  multiPolygonGeometrySchema
-]);
+export type Coordinate = z.infer<typeof coordinateSchema>;
 
-// Department schema
-export const departmentSchema = z.object({
+// Bounding box schema for map view boundaries
+export const boundingBoxSchema = z.object({
+  north: z.number().min(-90).max(90),
+  south: z.number().min(-90).max(90),
+  east: z.number().min(-180).max(180),
+  west: z.number().min(-180).max(180)
+});
+
+export type BoundingBox = z.infer<typeof boundingBoxSchema>;
+
+// Geographic feature schema for points of interest, regions, etc.
+export const geographicFeatureSchema = z.object({
   id: z.number(),
-  code: z.string(),
   name: z.string(),
-  geometry: geometrySchema,
-  created_at: z.coerce.date(),
-  updated_at: z.coerce.date()
+  description: z.string().nullable(),
+  feature_type: z.enum(['city', 'region', 'landmark', 'administrative', 'natural']),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  properties: z.record(z.string()).nullable(), // JSON properties for additional data
+  created_at: z.coerce.date()
 });
 
-export type Department = z.infer<typeof departmentSchema>;
+export type GeographicFeature = z.infer<typeof geographicFeatureSchema>;
 
-// Commune schema
-export const communeSchema = z.object({
-  id: z.number(),
-  code: z.string(),
-  name: z.string(),
-  department_code: z.string(),
-  geometry: geometrySchema,
-  created_at: z.coerce.date(),
-  updated_at: z.coerce.date()
+// Input schema for creating geographic features
+export const createGeographicFeatureInputSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  feature_type: z.enum(['city', 'region', 'landmark', 'administrative', 'natural']),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  properties: z.record(z.string()).nullable().optional()
 });
 
-export type Commune = z.infer<typeof communeSchema>;
+export type CreateGeographicFeatureInput = z.infer<typeof createGeographicFeatureInputSchema>;
 
-// PLU Zone schema
-export const pluZoneSchema = z.object({
-  id: z.number(),
-  code: z.string(),
-  name: z.string(),
-  commune_code: z.string(),
-  zone_type: z.string(),
-  geometry: geometrySchema,
-  created_at: z.coerce.date(),
-  updated_at: z.coerce.date()
+// Map view configuration schema
+export const mapViewSchema = z.object({
+  center: coordinateSchema,
+  zoom_level: z.number().min(1).max(20),
+  bounds: boundingBoxSchema.optional()
 });
 
-export type PluZone = z.infer<typeof pluZoneSchema>;
+export type MapView = z.infer<typeof mapViewSchema>;
 
-// Input schemas for queries
-export const getDepartmentsInputSchema = z.object({
-  bbox: z.array(z.number()).length(4).optional() // [minX, minY, maxX, maxY]
+// Query schema for searching geographic features
+export const searchGeographicFeaturesInputSchema = z.object({
+  query: z.string().optional(),
+  feature_type: z.enum(['city', 'region', 'landmark', 'administrative', 'natural']).optional(),
+  bounds: boundingBoxSchema.optional(),
+  limit: z.number().int().positive().max(100).default(50)
 });
 
-export type GetDepartmentsInput = z.infer<typeof getDepartmentsInputSchema>;
+export type SearchGeographicFeaturesInput = z.infer<typeof searchGeographicFeaturesInputSchema>;
 
-export const getCommunesInputSchema = z.object({
-  department_code: z.string()
+// Schema for getting features within a bounding box
+export const getFeaturesInBoundsInputSchema = z.object({
+  bounds: boundingBoxSchema,
+  feature_types: z.array(z.enum(['city', 'region', 'landmark', 'administrative', 'natural'])).optional(),
+  limit: z.number().int().positive().max(1000).default(100)
 });
 
-export type GetCommunesInput = z.infer<typeof getCommunesInputSchema>;
-
-export const getPluZonesInputSchema = z.object({
-  commune_code: z.string()
-});
-
-export type GetPluZonesInput = z.infer<typeof getPluZonesInputSchema>;
-
-// Response schemas for API data
-export const geoPortailFeatureSchema = z.object({
-  type: z.literal('Feature'),
-  properties: z.record(z.unknown()),
-  geometry: geometrySchema
-});
-
-export const geoPortailFeatureCollectionSchema = z.object({
-  type: z.literal('FeatureCollection'),
-  features: z.array(geoPortailFeatureSchema)
-});
-
-export type GeoPortailFeature = z.infer<typeof geoPortailFeatureSchema>;
-export type GeoPortailFeatureCollection = z.infer<typeof geoPortailFeatureCollectionSchema>;
+export type GetFeaturesInBoundsInput = z.infer<typeof getFeaturesInBoundsInputSchema>;
